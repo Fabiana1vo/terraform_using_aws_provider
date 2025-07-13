@@ -8,17 +8,18 @@ terraform {
 }
 
 provider "aws" {
-  region  = "us-west-2"
+  region  = "us-east-2"
   profile = "default"
 }
 
 data "aws_secretsmanager_secret" "secret" {
-  arn = "arn:aws:secretsmanager:us-east-1:825765413912:secret:prod/terraform/db-A85g93"
+  arn = "arn:aws:secretsmanager:us-east-2:825765413912:secret:prod/Terraform/Db-x7M2ln"
 }
 
-data "aws_secretsmanager_secret_version" "secret_v" {
+data "aws_secretsmanager_secret_version" "current" {
   secret_id = data.aws_secretsmanager_secret.secret.id
 }
+
 ## Criando uma VPC -> 
 resource "aws_vpc" "exemple" {
   cidr_block = "10.0.0.0/16"
@@ -27,19 +28,20 @@ resource "aws_vpc" "exemple" {
 resource "aws_subnet" "exemple_subnet" {
   vpc_id            = aws_vpc.exemple.id
   cidr_block        = "10.0.1.0/24"
-  availability_zone = "us-west-2a"
+  availability_zone = "us-east-2a"
 }
 
 
 resource "aws_instance" "exemple_instance" {
-  ami           = "ami-01cd4de4363ab6ee8"
+  ami           = "ami-0eb9d6fc9fab44d24"
   instance_type = "t2.micro"
   subnet_id     = aws_subnet.exemple_subnet.id
 
   user_data = <<EOF
 #!/bin/bash
-DB_STRING="Server=${data.aws_secretsmanager_secret_version.secret_v.current.secret_string}"
-    EOF 
+DB_STRING="Server=${jsondecode(data.aws_secretsmanager_secret_version.current.secret_string)["Host"]};DB=${jsondecode(data.aws_secretsmanager_secret_version.current.secret_string)["Username"]};"
+echo $DB_STRING > test.txt
+EOF 
 }
 
 
