@@ -25,6 +25,38 @@ resource "aws_vpc" "exemple" {
   cidr_block = "10.0.0.0/16"
 }
 
+
+resource "aws_route_table" "exemple_route_table" {
+  vpc_id = aws_vpc.exemple.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.exemple_igw.id
+  }
+}
+resource "aws_route_table_association" "exemple_route_table_association" {
+  subnet_id      = aws_subnet.exemple_subnet.id
+  route_table_id = aws_route_table.exemple_route_table.id
+}
+resource "aws_security_group" "exemple_sg" {
+  vpc_id = aws_vpc.exemple.id
+  name   = "Allow SSH"
+
+  tags = {
+    Name = "Allow SSH"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "exemple_sg_ingress_rule" {
+  security_group_id = aws_security_group.exemple_sg.id
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+
+
 resource "aws_subnet" "exemple_subnet" {
   vpc_id            = aws_vpc.exemple.id
   cidr_block        = "10.0.1.0/24"
@@ -32,12 +64,13 @@ resource "aws_subnet" "exemple_subnet" {
 }
 
 
-resource "aws_instance" "exemple_instance" {
-  ami           = "ami-0eb9d6fc9fab44d24"
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.exemple_subnet.id
 
-  user_data = <<EOF
+resource "aws_instance" "exemple_instance" {
+  ami                    = "ami-0eb9d6fc9fab44d24"
+  instance_type          = "t2.micro"
+  subnet_id              = aws_subnet.exemple_subnet.id
+  vpc_security_group_ids = [aws_security_group.exemple_sg.id]
+  user_data              = <<EOF
 #!/bin/bash
 DB_STRING="Server=${jsondecode(data.aws_secretsmanager_secret_version.current.secret_string)["Host"]};DB=${jsondecode(data.aws_secretsmanager_secret_version.current.secret_string)["Username"]};"
 echo $DB_STRING > test.txt
